@@ -10,7 +10,7 @@ memweave is a zero-infrastructure, async-first Python library that gives AI agen
 
 ---
 
-## Why memweave?
+## 💡 Why memweave?
 
 - 📄 **Human-readable by design.** Memories live in plain `.md` files on disk. Open them in your editor, inspect them in your terminal, or `git diff` what your agent learned between runs.
 - 🔍 **Hybrid search out of the box.** Combines BM25 keyword ranking (FTS5) with semantic vector search (sqlite-vec) and merges them — so "PostgreSQL JSONB" finds both exact matches and conceptually related content.
@@ -70,7 +70,7 @@ Each result includes a relevance score and the exact file and line it came from:
 
 ---
 
-## How it works
+## ⚙️ How it works
 
 memweave separates **storage** from **search**:
 
@@ -101,7 +101,7 @@ memweave separates **storage** from **search**:
 
 ---
 
-## Core concepts
+## 🧠 Core concepts
 
 ### Markdown as the source of truth
 
@@ -156,7 +156,7 @@ Post-processors run after merging:
 
 ---
 
-## Usage examples
+## 💻 Usage examples
 
 ### Single agent with persistent memory
 
@@ -358,7 +358,7 @@ async with MemWeave() as mem:
 
 ---
 
-## Configuring memweave
+## 🔧 Configuring memweave
 
 All configuration is optional — sensible defaults work out of the box. Pass a `MemoryConfig` to override.
 
@@ -465,7 +465,7 @@ config = MemoryConfig(
 
 ---
 
-## API reference
+## 📖 API reference
 
 ### `MemWeave`
 
@@ -490,12 +490,12 @@ Issues and pull requests are welcome. Please open an issue before starting large
 
 ---
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
 🦞 [OpenClaw](https://github.com/openclaw/openclaw) — the memory architecture that inspired memweave.
 
 ---
 
-## License
+## ⚖️ License
 
 MIT
