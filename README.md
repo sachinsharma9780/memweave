@@ -5,6 +5,9 @@
 [![PyPI](https://img.shields.io/pypi/v/memweave)](https://pypi.org/project/memweave/)
 [![Python](https://img.shields.io/pypi/pyversions/memweave)](https://pypi.org/project/memweave/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/sachinsharma9780/memweave/actions/workflows/ci.yml/badge.svg)](https://github.com/sachinsharma9780/memweave/actions/workflows/ci.yml)
+[![code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 memweave is a zero-infrastructure, async-first Python library that gives AI agents persistent, searchable memory — stored as plain Markdown files and indexed by SQLite. No external services. No black-box databases. Every memory is a file you can open, edit, grep, and version-control.
 
