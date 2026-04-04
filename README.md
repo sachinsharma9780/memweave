@@ -26,6 +26,33 @@ memweave is a zero-infrastructure, async-first Python library that gives AI agen
 
 ---
 
+## 📋 Table of contents
+
+- [Quickstart Guide](#-quickstart-guide)
+- [How it works](#️-how-it-works)
+- [Core concepts](#-core-concepts)
+  - [Markdown as the source of truth](#markdown-as-the-source-of-truth)
+  - [Evergreen vs dated files](#evergreen-vs-dated-files)
+  - [Agent namespaces & source labels](#agent-namespaces--source-labels)
+  - [Search pipeline](#search-pipeline)
+  - [Temporal decay](#temporal-decay)
+  - [MMR re-ranking](#mmr-re-ranking)
+- [Usage examples](#-usage-examples)
+  - [Single agent with persistent memory](#single-agent-with-persistent-memory)
+  - [Multi-agent with shared and isolated namespaces](#multi-agent-with-shared-and-isolated-namespaces)
+  - [Memory flush](#memory-flush--persist-conversation-facts-before-context-compaction)
+  - [Custom search strategy](#custom-search-strategy)
+  - [File watcher](#file-watcher--auto-reindex-on-file-change)
+  - [Inspect memory status](#inspect-memory-status)
+  - [List indexed files](#list-indexed-files)
+- [Configuring memweave](#-configuring-memweave)
+  - [Embedding providers](#embedding-providers)
+- [API reference](#-api-reference)
+- [Contributing](#-contributing)
+- [License](#️-license)
+
+---
+
 ## 🚀 Quickstart Guide
 
 ```bash
