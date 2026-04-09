@@ -3,8 +3,8 @@
 **Agent memory you can read, search, and `git diff`.**
 
 [![PyPI](https://img.shields.io/pypi/v/memweave)](https://pypi.org/project/memweave/)
-[![Python](https://img.shields.io/pypi/pyversions/memweave)](https://pypi.org/project/memweave/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/memweave?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/memweave)
+[![Python](https://img.shields.io/pypi/pyversions/memweave)](https://pypi.org/project/memweave/)
 [![CI](https://github.com/sachinsharma9780/memweave/actions/workflows/ci.yml/badge.svg)](https://github.com/sachinsharma9780/memweave/actions/workflows/ci.yml)
 [![code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
