@@ -71,4 +71,11 @@ jobs:
         run: poetry install
 
       - name: Unit tests
-        run: poetry run pytest tests/unit/ --tb=short --cov=memweave --cov-report=term-missing --cov-fail-under=70
+        run: poetry run pytest tests/unit/ --tb=short --cov=memweave --cov-report=term-missing --cov-report=xml --cov-fail-under=70
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
