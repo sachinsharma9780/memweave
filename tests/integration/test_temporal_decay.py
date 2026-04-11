@@ -86,3 +86,55 @@ async def test_temporal_decay(workspace: Path, embedding_model: str) -> None:
         old_long = long_scores.get(old_path, scores[old_path])
 
         assert old_long > old_decay, "Longer half-life should preserve more of the old file's score"
+
+
+_SESSION_OLD_DATE = "2026-01-01"  # ~100 days before 2026-04-11
+_SESSION_NEW_DATE = "2026-04-01"  # ~10 days before 2026-04-11
+_SESSION_CONTENT = (
+    "We confirmed the rollback plan: revert the migration and restart the service.\n"
+    "The on-call engineer will monitor for 24 hours after deployment.\n"
+)
+
+
+@pytest.mark.asyncio
+async def test_session_subdir_dated_decay(workspace: Path, embedding_model: str) -> None:
+    """Dated files under memory/sessions/ decay by filename date — same rule as memory/ root."""
+    sessions_dir = workspace / "memory" / "sessions"
+    sessions_dir.mkdir()
+
+    (sessions_dir / f"{_SESSION_OLD_DATE}.md").write_text(_SESSION_CONTENT)
+    (sessions_dir / f"{_SESSION_NEW_DATE}.md").write_text(_SESSION_CONTENT)
+
+    config = MemoryConfig(
+        workspace_dir=workspace,
+        embedding=EmbeddingConfig(model=embedding_model),
+        query=QueryConfig(min_score=0.0, max_results=10),
+    )
+
+    query = "rollback plan on-call deployment"
+    old_path = f"memory/sessions/{_SESSION_OLD_DATE}.md"
+    new_path = f"memory/sessions/{_SESSION_NEW_DATE}.md"
+
+    async with MemWeave(config) as mem:
+        await mem.index()
+
+        # Without decay: identical content → nearly identical scores
+        r_no_decay = await mem.search(query, min_score=0.0)
+        scores = {r.path: r.score for r in r_no_decay}
+        assert old_path in scores, f"{old_path} not found in results"
+        assert new_path in scores, f"{new_path} not found in results"
+        diff = abs(scores[old_path] - scores[new_path])
+        assert diff < 0.05, f"Identical content without decay should score similarly, diff={diff:.4f}"
+
+        # With aggressive decay: ~100-day-old session file should drop sharply
+        # half_life=7d → 2^(-100/7) ≈ 0.000054 multiplier
+        r_decay = await mem.search(query, min_score=0.0, decay_half_life_days=7.0)
+        decay_scores = {r.path: r.score for r in r_decay}
+
+        old_decay = decay_scores.get(old_path, 0.0)
+        new_decay = decay_scores.get(new_path, scores.get(new_path, 0.0))
+
+        assert new_decay > old_decay * 5, (
+            f"With half_life=7d, new session should score >5× old. "
+            f"new={new_decay:.4f} old={old_decay:.6f}"
+        )

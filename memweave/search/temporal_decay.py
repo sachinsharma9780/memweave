@@ -33,8 +33,9 @@ import aiofiles.os
 from memweave.search.strategy import RawSearchRow
 
 # Regex that matches dated memory paths: memory/YYYY-MM-DD.md
-# Works with both ``memory/2026-03-28.md`` and ``./memory/2026-03-28.md``
-_DATED_PATH_RE = re.compile(r"(?:^|\/)memory\/(\d{4})-(\d{2})-(\d{2})\.md$")
+# Also matches one level of subdirectory: memory/sessions/YYYY-MM-DD.md
+# Works with both ``memory/2026-03-28.md`` and ``./memory/sessions/2026-03-28.md``
+_DATED_PATH_RE = re.compile(r"(?:^|\/)memory\/(?:[^/]+\/)?(\d{4})-(\d{2})-(\d{2})\.md$")
 
 _DAY_SECONDS = 86_400.0
 
@@ -162,7 +163,7 @@ def is_evergreen_path(file_path: str) -> bool:
         return True
     if not normalized.startswith("memory/"):
         return False
-    # Under memory/ but not dated → evergreen
+    # Under memory/ but not dated → evergreen (applies at any depth)
     return _DATED_PATH_RE.search(file_path.replace("\\", "/")) is None
 
 
@@ -190,11 +191,17 @@ async def _extract_date(
     """Extract the effective date for a file — from path first, then mtime.
 
     Steps:
-    1. Parse date from filename (``memory/YYYY-MM-DD.md``). Return if found.
+    1. Parse date from filename (``memory/YYYY-MM-DD.md`` or
+       ``memory/<subdir>/YYYY-MM-DD.md``). Return if found.
     2. If the file is evergreen → return ``None`` (no decay applies).
+       All ``memory/`` files with non-dated filenames are evergreen at any depth.
     3. If ``workspace_dir`` is ``None`` → return ``None`` (cannot resolve path).
     4. Resolve the absolute path and ``stat()`` the file.
     5. Return the mtime as a :class:`datetime.date`, or ``None`` on error.
+
+    Steps 3–5 (mtime fallback) are only reached for files outside ``memory/``
+    (e.g. ``extra_paths`` external files with no date in their filename).
+    All ``memory/``-managed files are fully resolved by steps 1–2.
 
     Args:
         file_path:     Relative or absolute file path.
