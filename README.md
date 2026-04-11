@@ -152,7 +152,8 @@ The SQLite index is a **derived cache** — always rebuildable from the Markdown
 | `memory/MEMORY.md` | **Evergreen** — never decays, write-protected during `flush()` |
 | `memory/2026-03-21.md` | **Dated** — subject to temporal decay (older memories rank lower) |
 | `memory/researcher_agent/` | **Agent-scoped** — isolated namespace per agent |
-| `memory/episodes/event.md` | **Episodic** — named events, timestamped |
+| `memory/episodes/known-facts.md` | **Evergreen** — non-dated file in a subdirectory, always full score |
+| `memory/sessions/2026-04-01.md` | **Dated** — subdirectory dated file, decays by filename date |
 
 Evergreen files hold foundational facts that should always surface at full score. Dated files accumulate daily learning and fade naturally — recent memories rank higher.
 
@@ -248,9 +249,10 @@ With the default `half_life_days=30`:
 
 | File | Age source | Decays? |
 |------|------------|---------|
-| `memory/MEMORY.md`, `memory/architecture.md` (any non-dated file under `memory/`) | — | **No** — evergreen, always full score |
+| `memory/MEMORY.md`, `memory/architecture.md` (any non-dated file directly under `memory/`) | — | **No** — evergreen, always full score |
+| `memory/agents/notes.md` (non-dated file in any `memory/` subdirectory) | — | **No** — evergreen, same rule as root non-dated files |
 | `memory/2026-03-21.md` (dated daily log) | Date parsed from filename | **Yes** |
-| `sessions/foo.md`, `memory/agents/notes.md` (undated, non-evergreen) | File `mtime` on disk | **Yes** |
+| `memory/sessions/2026-03-21.md` (dated file in any `memory/` subdirectory) | Date parsed from filename | **Yes** — same rule as root dated files |
 
 Evergreen files hold foundational facts — stack choices, hard constraints, permanent preferences — that should always surface at full score regardless of when they were written. Daily logs capture evolving context and fade naturally as new sessions add fresher knowledge.
 

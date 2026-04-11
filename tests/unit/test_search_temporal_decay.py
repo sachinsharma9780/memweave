@@ -156,6 +156,12 @@ class TestParseDateFromPath:
     def test_session_file(self):
         assert parse_date_from_path("sessions/2026-03-28.md") is None
 
+    def test_subdir_dated_path(self):
+        assert parse_date_from_path("memory/sessions/2026-03-28.md") == date(2026, 3, 28)
+
+    def test_subdir_dated_path_researcher(self):
+        assert parse_date_from_path("memory/researcher/2026-04-01.md") == date(2026, 4, 1)
+
 
 # ── is_evergreen_path ─────────────────────────────────────────────────────────
 
@@ -184,6 +190,21 @@ class TestIsEvergreenPath:
 
     def test_arbitrary_file_not_evergreen(self):
         assert is_evergreen_path("docs/readme.md") is False
+
+    def test_sessions_subdir_nondated_is_evergreen(self):
+        assert is_evergreen_path("memory/sessions/foo.md") is True
+
+    def test_sessions_subdir_dated_not_evergreen(self):
+        assert is_evergreen_path("memory/sessions/2026-03-29.md") is False
+
+    def test_researcher_subdir_nondated_is_evergreen(self):
+        assert is_evergreen_path("memory/researcher/analysis.md") is True
+
+    def test_researcher_subdir_dated_not_evergreen(self):
+        assert is_evergreen_path("memory/researcher/2026-04-01.md") is False
+
+    def test_custom_subdir_nondated_is_evergreen(self):
+        assert is_evergreen_path("memory/episodes/standup.md") is True
 
 
 # ── age_in_days ───────────────────────────────────────────────────────────────
@@ -311,6 +332,26 @@ class TestApplyTemporalDecay:
         rows = [_row("s2", "sessions/fresh.md", 1.0)]
         result = await apply_temporal_decay(rows, half_life_days=30, workspace_dir=tmp_path)
         assert result[0].score > 0.9
+
+    async def test_memory_sessions_nondated_is_evergreen(self):
+        """Non-dated memory/sessions/ file is evergreen — score unchanged."""
+        rows = [_row("s_nd", "memory/sessions/known-facts.md", 0.8)]
+        result = await apply_temporal_decay(rows, half_life_days=30, now=date(2026, 3, 28))
+        assert result[0].score == pytest.approx(0.8)
+
+    async def test_memory_sessions_dated_file_decays_by_date(self):
+        """Dated memory/sessions/YYYY-MM-DD.md decays by filename date, no mtime needed."""
+        rows = [_row("s_d", "memory/sessions/2026-01-01.md", 1.0)]
+        result = await apply_temporal_decay(rows, half_life_days=30, now=date(2026, 3, 28))
+        expected = apply_decay_to_score(1.0, 86.0, 30.0)
+        assert result[0].score == pytest.approx(expected, rel=1e-6)
+
+    async def test_memory_researcher_dated_file_decays_by_date(self):
+        """Dated memory/researcher/YYYY-MM-DD.md decays by filename date."""
+        rows = [_row("r_d", "memory/researcher/2026-01-01.md", 1.0)]
+        result = await apply_temporal_decay(rows, half_life_days=30, now=date(2026, 3, 28))
+        expected = apply_decay_to_score(1.0, 86.0, 30.0)
+        assert result[0].score == pytest.approx(expected, rel=1e-6)
 
     async def test_mtime_cache_deduplicates_stat_calls(self, tmp_path: Path, monkeypatch):
         """Multiple chunks from the same file path are stat-ted only once."""
