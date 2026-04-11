@@ -165,6 +165,33 @@ class TestFlushConversation:
 
         assert result is None
 
+    # ── BUG-001: date injection ──────────────────────────────────────────────
+
+    async def test_default_system_prompt_date_injected(self, tmp_path: Path):
+        """Default system prompt: YYYY-MM-DD replaced with today before LLM call."""
+        config = _make_config(tmp_path)
+
+        with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = _make_litellm_response("Fact.")
+            await flush_conversation([], config)
+
+        system_content = mock_llm.call_args[1]["messages"][0]["content"]
+        assert date.today().isoformat() in system_content
+        assert "YYYY-MM-DD" not in system_content
+
+    async def test_custom_system_prompt_date_injected(self, tmp_path: Path):
+        """Custom system_prompt= containing YYYY-MM-DD: token is still replaced."""
+        config = _make_config(tmp_path)
+        custom = "Store facts in memory/YYYY-MM-DD.md. If nothing, @@SILENT_REPLY@@."
+
+        with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = _make_litellm_response("Fact.")
+            await flush_conversation([], config, system_prompt=custom)
+
+        system_content = mock_llm.call_args[1]["messages"][0]["content"]
+        assert date.today().isoformat() in system_content
+        assert "YYYY-MM-DD" not in system_content
+
 
 # ── MemWeave.flush() wrapper ─────────────────────────────────────────────────
 

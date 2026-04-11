@@ -412,7 +412,13 @@ class FlushConfig:
         "canonical YYYY-MM-DD.md filename.\n"
         "If nothing to store, reply with @@SILENT_REPLY@@."
     )
-    """System prompt for LLM extraction. Customize to change extraction behavior."""
+    """System prompt for LLM extraction.
+
+    The literal token ``YYYY-MM-DD`` is replaced with today's ISO date before
+    the LLM call, so the model always writes the correct date in headings.
+    Custom prompts that include ``YYYY-MM-DD`` benefit from the same injection.
+    Prompts without the token are passed through unchanged.
+    """
 
     def __post_init__(self) -> None:
         """Validate max_tokens and temperature.

@@ -60,6 +60,11 @@ async def flush_conversation(
     effective_model = model or flush_cfg.model
     effective_system = system_prompt or flush_cfg.system_prompt
 
+    # Inject today's date before sending to the LLM so headings use the real date,
+    # not an invented one.  Replaces the literal placeholder used in the default prompt.
+    today = date.today()
+    effective_system = effective_system.replace("YYYY-MM-DD", today.isoformat())
+
     messages = [
         {"role": "system", "content": effective_system},
         *conversation,
@@ -84,16 +89,9 @@ async def flush_conversation(
         logger.debug("Flush: LLM replied with silent sentinel — nothing to store.")
         return None
 
-    # Determine the dated memory file path
+    # Determine the dated memory file path  (today already computed above)
     workspace = Path(config.workspace_dir)
     memory_dir = workspace / "memory"
-    try:
-        import zoneinfo
-
-        zoneinfo.ZoneInfo(config.timezone)
-    except Exception:
-        pass
-    today = date.today()
     dated_file = memory_dir / f"{today.isoformat()}.md"
 
     try:
