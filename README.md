@@ -39,6 +39,12 @@ memweave is a zero-infrastructure, async-first Python library that gives AI agen
   - [Search pipeline](#search-pipeline)
   - [Temporal decay](#temporal-decay)
   - [MMR re-ranking](#mmr-re-ranking)
+- [CLI](#-cli)
+  - [index](#memweave-index)
+  - [add](#memweave-add-file)
+  - [files](#memweave-files)
+  - [search](#memweave-search-query)
+  - [stats](#memweave-stats)
 - [Usage examples](#-usage-examples)
   - [Single agent with persistent memory](#single-agent-with-persistent-memory)
   - [Multi-agent with shared and isolated namespaces](#multi-agent-with-shared-and-isolated-namespaces)
@@ -325,6 +331,167 @@ async with MemWeave(config) as mem:
 ```
 
 MMR runs after temporal decay, so the diversity pass operates on already age-adjusted scores — the reranker sees a realistic picture of which results actually matter before deciding what is redundant.
+
+---
+
+## 💻 CLI
+
+`pip install memweave` registers a `memweave` binary alongside the Python library. Every command is a thin shell over the same `MemWeave` public methods, so anything you can do from Python you can do from a terminal, a shell script, or a CI step — without writing a single line of Python.
+
+This is particularly useful for:
+
+- **Inspecting agent memory** without opening a Python REPL — browse what's indexed, check scores, read snippets directly in the terminal.
+- **Shell scripts and CI pipelines** — index a workspace after a build, search for a known fact and fail the pipeline if it isn't there, or export results as JSON for downstream tools.
+- **Agents that orchestrate subprocesses** — an LLM running a bash tool can call `memweave search` and parse the JSON output without embedding the library.
+
+All commands accept `--workspace / -w` to point at any directory and `--embedding-model` to override the model. Every command that produces structured output accepts `--json` for machine-readable output.
+
+---
+
+### `memweave index`
+
+Scan the workspace for `.md` files and embed any that have changed since the last run. Uses SHA-256 hashing to skip unchanged files — fast on large workspaces.
+
+```bash
+# Index a workspace
+memweave index --workspace ./my_project --embedding-model text-embedding-3-small
+
+# Force re-embed everything regardless of hash
+memweave index --workspace ./my_project --embedding-model text-embedding-3-small --force
+```
+
+---
+
+### `memweave add <file>`
+
+Index a single file immediately. Useful after writing a new memory file and wanting it available in search right away, without scanning the whole workspace.
+
+The `<file>` path is resolved from your **current working directory** (like any shell command), not from `--workspace`. So if your workspace is at `./my_project`, run from its parent:
+
+```bash
+# Run from the parent of my_project/
+memweave add my_project/memory/2026-04-25.md --workspace ./my_project --embedding-model text-embedding-3-small
+
+# Or cd into the workspace first, then the path is relative to CWD
+cd my_project
+memweave add memory/infrastructure.md --workspace . --embedding-model text-embedding-3-small
+
+# Force re-index even if the file hasn't changed
+memweave add my_project/memory/architecture.md --workspace ./my_project --embedding-model text-embedding-3-small --force
+```
+
+---
+
+### `memweave files`
+
+List every file currently tracked in the index with its source label, chunk count, and whether it is evergreen.
+
+```bash
+# Filter to a specific source namespace
+memweave files --workspace ./my_project --source sessions
+
+# Machine-readable output
+memweave files --workspace ./my_project --json
+
+# Table view
+memweave files --workspace ./my_project
+```
+
+Example output:
+
+```
+Path                          Source    Chunks  Evergreen
+memory/2026-04-25.md          memory        3   no
+memory/architecture.md        memory        5   yes
+memory/sessions/2026-04-24.md sessions      2   no
+```
+
+---
+
+### `memweave search <query>`
+
+Search the index and return ranked results with relevance scores, file paths, line ranges, source labels, and a content preview. The full search pipeline runs — hybrid (vector + keyword) by default, with optional MMR and temporal decay.
+
+```bash
+# Basic search
+memweave search "PostgreSQL JSONB" --workspace ./my_project --embedding-model text-embedding-3-small
+
+# Cap results and set a minimum score
+memweave search "caching layer" --workspace ./my_project --max-results 3 --min-score 0.3
+
+# Scope to one source namespace
+memweave search "deployment steps" --workspace ./my_project --source-filter sessions --embedding-model text-embedding-3-small
+
+# Use keyword-only search (no embedding API needed)
+memweave search "Redis ElastiCache" --workspace ./my_project --strategy keyword
+
+# Control diversity vs relevance with MMR (0 = diverse, 1 = relevant)
+memweave search "database choice" --workspace ./my_project --mmr-lambda 0.3 --embedding-model text-embedding-3-small
+
+# Apply temporal decay so older memories rank lower
+memweave search "architecture decision" --workspace ./my_project --decay-half-life-days 14 --embedding-model text-embedding-3-small
+
+# JSON output — pipe to jq, save to file, or pass to another tool
+memweave search "database choice" --workspace ./my_project --embedding-model text-embedding-3-small --json
+memweave search "database choice" --workspace ./my_project --embedding-model text-embedding-3-small --json | jq '.[0].snippet'
+```
+
+Example table output:
+
+```
+Score  Path                          Lines   Source   Preview
+ 0.91  memory/2026-04-25.md          1–8     memory   PostgreSQL 16 chosen for JSONB support.
+ 0.74  memory/infrastructure.md      4–11    memory   Production Redis runs on ElastiCache r6g.
+ 0.61  memory/sessions/findings.md   23–30   sessions Discussed moving from Memcached to Redis.
+```
+
+Example JSON output (`--json`):
+
+```json
+[
+  {
+    "path": "memory/2026-04-25.md",
+    "start_line": 1,
+    "end_line": 8,
+    "score": 0.91,
+    "snippet": "PostgreSQL 16 chosen for JSONB support.",
+    "source": "memory",
+    "vector_score": 0.91,
+    "text_score": 0.70
+  }
+]
+```
+
+---
+
+### `memweave stats`
+
+Show a summary of the current index state — file and chunk counts, active search mode, embedding cache usage, and whether the index is stale. Prints a warning when files on disk have changed since the last `memweave index` run.
+
+```bash
+memweave stats --workspace ./my_project
+memweave stats --workspace ./my_project --json
+```
+
+Example output:
+
+```
+──────────────────────────────────────
+  Workspace:        /my_project
+  DB path:          /my_project/.memweave/index.sqlite
+  Search mode:      hybrid
+  Provider:         litellm
+  Model:            text-embedding-3-small
+
+  Files:            12
+  Chunks:           47
+  Cache entries:    47
+  Cache max:        unlimited
+  Dirty:            no
+  Watcher active:   no
+  FTS available:    yes
+  Vector available: yes
+```
 
 ---
 
