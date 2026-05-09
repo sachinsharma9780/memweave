@@ -52,8 +52,8 @@ benchmarks/data/splits/                 ← 5 stratified CV splits (seeds 42, 0,
 
 | Subset | Questions | Purpose |
 |---|---|---|
-| `dev` | 50 | Hyperparameter tuning only (~7 min) |
-| `held_out` | 450 | Single clean evaluation (~60 min) |
+| `dev` | 50 | Hyperparameter tuning only |
+| `held_out` | 450 | Single clean evaluation |
 
 **Integrity rule:** all alpha decisions are made on `dev` only. The held-out
 result is run once; no parameters are adjusted after observing held-out failures.
@@ -241,7 +241,7 @@ regenerate them, as the held-out IDs must be identical across runs.
 
 ### Fixed split — canonical held-out result
 
-**Step 1 — Find optimal alphas on dev (~7 min)**
+**Step 1 — Find optimal alphas on dev**
 
 ```bash
 .venv/bin/python -u benchmarks/longmemeval_bench.py \
@@ -255,7 +255,7 @@ Expected best combo: `ECR α=0.3  IDF α=0.6  CAATB α=0.2`
 The sweep evaluates 27 alpha combinations without re-embedding — raw vector rows
 are cached once per question and all combos are applied offline.
 
-**Step 2 — Evaluate on held-out (~60 min)**
+**Step 2 — Evaluate on held-out**
 
 ```bash
 .venv/bin/python -u benchmarks/longmemeval_bench.py \
@@ -277,7 +277,7 @@ Results are written to `benchmarks/results/results_mw_ecr{α}_idf{α}_caatb{α}_
 
 ---
 
-### 5-seed cross-validated results (~5–6 hours)
+### 5-seed cross-validated results
 
 ```bash
 .venv/bin/python -u benchmarks/multiseed_sweep.py \
