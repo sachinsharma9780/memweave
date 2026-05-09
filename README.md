@@ -15,6 +15,42 @@ memweave is a zero-infrastructure, async-first Python library that gives AI agen
 
 ---
 
+## 📊 Benchmark — LongMemEval-S
+
+Evaluated on [LongMemEval-S](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned) — a 500-question benchmark covering multi-session memory, temporal reasoning, knowledge updates, and user preferences. Primary metric: **Recall@5** (any correct session in the top-5 results).
+
+### Comparison with mempalace — held-out split (450 questions)
+
+Same conditions: same dataset, same 50/450 dev/held-out split, same embedding model (`all-MiniLM-L6-v2` via Ollama — local, no API key). Parameters tuned on dev only; held-out is a single clean measurement with no post-hoc tuning. **No LLM, no API key, and no cloud service at any stage.**
+
+| System | R@5 | R@10 | NDCG@5 | 100% recall at |
+|--------|-----|------|--------|----------------|
+| **memweave** (ECR + IDF + CAATB) | **98.00%** | **99.11%** | **93.75%** | **R@23** |
+| mempalace Hybrid v4 | 98.44% | 99.78% | — | R@30 |
+
+> ECR — confidence-adaptive entity boost · IDF — corpus-relative keyword boost · CAATB — additive confidence-adaptive temporal boost. Three lightweight heuristic post-processors, zero neural inference. Implemented as custom plugins via `mem.register_postprocessor()` — not bundled with `pip install memweave`. Details and source in [`benchmarks/`](benchmarks/).
+
+**memweave achieves 100% recall at R@23 — 7 ranks earlier than [mempalace (R@30)](https://github.com/MemPalace/mempalace/blob/main/benchmarks/results_mempal_hybrid_v4_held_out_session_20260414_1634.jsonl).** For any downstream re-ranker or LLM pass operating on a fixed top-K window, a smaller context window guarantees full coverage.
+
+mempalace Hybrid v4 injects synthetic preference documents at ingestion time — 16 heuristic regex patterns (`"I prefer…"`, `"always use…"`, etc.) generate additional index entries per session. memweave reaches 98.00% without any ingestion-time augmentation.
+
+### Reproducibility — 5-seed cross-validated results
+
+The pipeline was re-evaluated on 5 independent stratified 50/450 splits (seeds 42, 0, 1, 2, 3), each with its own hyperparameter search on its own dev set. No information leaks across splits.
+
+| Metric | Mean | ±Std |
+|--------|------|------|
+| **R@5** | **97.24%** | **±0.12%** |
+| R@10 | 98.76% | ±0.12% |
+| R@25 | 100.00% | ±0.00% |
+| NDCG@5 | 92.28% | ±0.69% |
+
+The ±0.12% R@5 standard deviation confirms results are stable across different data splits.
+
+Full benchmark methodology, per-type breakdown, and step-by-step reproduction instructions: [`benchmarks/`](benchmarks/).
+
+---
+
 ## 💡 Why memweave?
 
 - 📄 **Human-readable by design.** Memories live in plain `.md` files on disk. Open them in your editor, inspect them in your terminal, or `git diff` what your agent learned between runs.

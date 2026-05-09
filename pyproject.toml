@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "memweave"
-version = "0.2.0"
+version = "0.2.1"
 description = "Agentic memory you can read, search, and git diff"
 authors = ["Sachin Sharma <sachin.sharma.tukl@gmail.com>"]
 readme = "README.md"
