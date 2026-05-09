@@ -1,8 +1,7 @@
 # Memweave × LongMemEval-S Benchmark
 
 Evaluates memweave on **LongMemEval-S** — a 500-question multi-session memory
-retrieval benchmark. Primary metric: **Recall@5 (any)** — whether any correct
-session appears in the top-5 results.
+retrieval benchmark.
 
 **Key results:**
 
@@ -20,6 +19,7 @@ at any stage.
 
 - [Dataset](#dataset)
 - [Question Types](#question-types)
+- [Metrics](#metrics)
 - [Pipeline](#pipeline)
 - [Strategies](#strategies)
 - [Setup](#setup)
@@ -74,6 +74,45 @@ result is run once; no parameters are adjusted after observing held-out failures
 `single-session-assistant` is a structural ceiling — only user turns are indexed,
 so answers that only appear in assistant turns cannot be retrieved by any
 embedding strategy.
+
+---
+
+## Metrics
+
+### Recall@K (any)
+
+Binary hit-or-miss: did any correct session appear in the top-K results?
+
+```
+Recall@K = 1  if any answer session is in the top-K ranked results
+           0  otherwise
+```
+
+Simple and interpretable, but position-blind — a correct session at rank 1 and
+rank K look identical.
+
+### NDCG@K
+
+Position-sensitive: a correct session ranked higher scores more than one ranked
+lower. Penalises correct-but-buried retrievals that Recall@K cannot distinguish.
+
+```
+DCG@K  = Σ  rel_i / log₂(i + 1)   for i = 1 … K
+NDCG@K = DCG@K / IDCG@K
+```
+
+`rel_i = 1` if the session at rank i is a correct answer, `0` otherwise.
+`IDCG@K` is the ideal DCG — the score if all correct sessions were ranked first.
+
+**Example** — 1 correct session, K=5:
+
+| Correct session at rank | DCG@5 | NDCG@5 |
+|---|---|---|
+| 1 | 1 / log₂(2) = **1.000** | **1.000** |
+| 3 | 1 / log₂(4) = **0.500** | **0.500** |
+| 5 | 1 / log₂(6) = **0.387** | **0.387** |
+
+Recall@5 is 1.0 in all three cases — it can't tell them apart. NDCG@5 can.
 
 ---
 
