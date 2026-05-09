@@ -82,6 +82,7 @@ from memweave.chunking.markdown import chunk_markdown
 from memweave.config import MemoryConfig
 from memweave.embedding.cache import evict_cache_if_needed, get_cached_embeddings, store_embedding
 from memweave.embedding.provider import EmbeddingProvider, LiteLLMEmbeddingProvider
+from memweave.embedding.vectors import normalize_embedding
 from memweave.exceptions import SearchError
 from memweave.search import (
     HybridSearch,
@@ -861,9 +862,26 @@ class MemWeave:
                 new_vecs = await self.embedding_provider.embed_batch(miss_texts)
                 embeddings_computed = len(new_vecs)
             except Exception as exc:
-                emit(p, EMOJI_WARN, "index", f"embedding failed for {rel}: {exc}")
-                logger.warning("Embedding failed for %s: %s. Storing without vectors.", rel, exc)
-                new_vecs = [[] for _ in miss_texts]
+                # Batch failed (e.g. one chunk exceeds model context length).
+                # Fall back to per-chunk embedding so only the bad chunks lose
+                # their vectors instead of the entire file's batch.
+                emit(
+                    p,
+                    EMOJI_WARN,
+                    "index",
+                    f"batch embedding failed for {rel}, retrying per-chunk: {exc}",
+                )
+                logger.warning(
+                    "Batch embedding failed for %s: %s. Retrying each chunk individually.", rel, exc
+                )
+                new_vecs = []
+                for i, text in enumerate(miss_texts):
+                    vec = await self._embed_with_halving(text, rel)
+                    if vec:
+                        new_vecs.append(vec)
+                        embeddings_computed += 1
+                    else:
+                        new_vecs.append([])
 
         # Store new embeddings in cache
         if self.config.cache.enabled:
@@ -945,6 +963,39 @@ class MemWeave:
             "embeddings_computed": embeddings_computed,
         }
 
+    async def _embed_with_halving(self, text: str, rel: str) -> list[float]:
+        """Embed text, recursively halving if the model rejects it as too long.
+
+        Splits at the nearest whitespace to the midpoint so sub-chunks are
+        word-aligned. When both halves succeed their vectors are averaged and
+        L2-normalised to produce a single representative vector for the chunk.
+        Returns [] only if the text is too short to split further.
+        """
+        try:
+            return await self.embedding_provider.embed_query(text)
+        except Exception:
+            if len(text) < 100:
+                logger.warning(
+                    "Chunk (chars=%d) in %s is too short to split further — storing without vector.",
+                    len(text),
+                    rel,
+                )
+                return []
+
+            # Split near the midpoint at a word boundary
+            mid = len(text) // 2
+            split = text.rfind(" ", mid // 2, mid + mid // 2)
+            if split == -1:
+                split = mid
+
+            left_vec = await self._embed_with_halving(text[:split].strip(), rel)
+            right_vec = await self._embed_with_halving(text[split:].strip(), rel)
+
+            if left_vec and right_vec:
+                avg = [(lv + rv) / 2.0 for lv, rv in zip(left_vec, right_vec)]
+                return normalize_embedding(avg)
+            return left_vec or right_vec or []
+
     async def _upsert_vec(self, chunk_id: str, vec: list[float]) -> None:
         """Insert or replace a vector into chunks_vec (sqlite-vec virtual table)."""
         assert self._db is not None
@@ -957,7 +1008,7 @@ class MemWeave:
                 [chunk_id, vec_bytes],
             )
         except Exception as exc:
-            logger.debug("Failed to upsert vec for %s: %s", chunk_id, exc)
+            logger.warning("Failed to upsert vec for %s: %s", chunk_id, exc)
 
     # ── Provider fingerprint ──────────────────────────────────────────────────
 
