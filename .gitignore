@@ -52,6 +52,7 @@ test_readme_code/
 
 # Benchmark — internal docs and intermediate results
 benchmarks/*.md
+!benchmarks/README.md
 benchmarks/results/
 benchmarks/verify_*.py
 
