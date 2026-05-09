@@ -21,8 +21,6 @@ Evaluated on [LongMemEval-S](https://huggingface.co/datasets/xiaowu0162/longmeme
 
 ### Comparison with mempalace — held-out split (450 questions)
 
-Same conditions: same dataset, same 50/450 dev/held-out split, same embedding model (`all-MiniLM-L6-v2` via Ollama — local, no API key). Parameters tuned on dev only; held-out is a single clean measurement with no post-hoc tuning. **No LLM, no API key, and no cloud service at any stage.**
-
 | System | R@5 | R@10 | NDCG@5 | 100% recall at |
 |--------|-----|------|--------|----------------|
 | **memweave** (ECR + IDF + CAATB) | **98.00%** | **99.11%** | **93.75%** | **R@23** |
@@ -32,7 +30,7 @@ Same conditions: same dataset, same 50/450 dev/held-out split, same embedding mo
 
 **memweave achieves 100% recall at R@23 — 7 ranks earlier than [mempalace (R@30)](https://github.com/MemPalace/mempalace/blob/main/benchmarks/results_mempal_hybrid_v4_held_out_session_20260414_1634.jsonl).** For any downstream re-ranker or LLM pass operating on a fixed top-K window, a smaller context window guarantees full coverage.
 
-mempalace Hybrid v4 injects synthetic preference documents at ingestion time — 16 heuristic regex patterns (`"I prefer…"`, `"always use…"`, etc.) generate additional index entries per session. memweave reaches 98.00% without any ingestion-time augmentation.
+> **Note:** mempalace Hybrid v4 injects synthetic preference documents at ingestion time — 16 heuristic regex patterns (`"I prefer…"`, `"always use…"`, etc.) generate additional index entries per session. memweave reaches 98.00% without any ingestion-time augmentation.
 
 ### Reproducibility — 5-seed cross-validated results
 
