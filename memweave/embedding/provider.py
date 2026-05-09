@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any, Protocol, runtime_checkable
 
 from memweave.config import EmbeddingConfig
@@ -299,10 +300,26 @@ def _get_status_code(exc: Exception) -> int | None:
     HTTP status code in ``exc.status_code`` (an int attribute). This helper
     safely extracts it, returning ``None`` if not found.
 
+    Some LiteLLM exception types (e.g. ``APIConnectionError`` wrapping Ollama
+    HTTP errors) don't set ``status_code`` but embed the HTTP status in the
+    message string, e.g. ``"Client error '400 Bad Request'"``. This helper
+    falls back to parsing the message so those errors are also classified
+    correctly (non-retryable 4xx vs retryable 5xx).
+
     Args:
         exc: Any exception (LiteLLM or otherwise).
 
     Returns:
         HTTP status code int, or ``None`` if the exception has none.
     """
-    return getattr(exc, "status_code", None)
+    # Check the message string first — LiteLLM's APIConnectionError misreports
+    # HTTP 400 errors as status_code=500, but the actual status is in the message.
+    # Pattern matches httpx format: "Client error '400 Bad Request'" or
+    # "Server error '503 Service Unavailable'"
+    m = re.search(r"(?:Client|Server) error '(\d{3})\b", str(exc))
+    if m:
+        return int(m.group(1))
+    code = getattr(exc, "status_code", None)
+    if code is not None:
+        return int(code)
+    return None
