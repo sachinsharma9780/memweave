@@ -28,7 +28,7 @@ Same conditions: same dataset, same 50/450 dev/held-out split, same embedding mo
 | **memweave** (ECR + IDF + CAATB) | **98.00%** | **99.11%** | **93.75%** | **R@23** |
 | mempalace Hybrid v4 | 98.44% | 99.78% | — | R@30 |
 
-> ECR — confidence-adaptive entity boost · IDF — corpus-relative keyword boost · CAATB — additive confidence-adaptive temporal boost. Three lightweight heuristic post-processors, zero neural inference. Details in [`benchmarks/`](benchmarks/).
+> ECR — confidence-adaptive entity boost · IDF — corpus-relative keyword boost · CAATB — additive confidence-adaptive temporal boost. Three lightweight heuristic post-processors, zero neural inference. Implemented as custom plugins via `mem.register_postprocessor()` — not bundled with `pip install memweave`. Details and source in [`benchmarks/`](benchmarks/).
 
 **memweave achieves 100% recall at R@23 — 7 ranks earlier than [mempalace (R@30)](https://github.com/MemPalace/mempalace/blob/main/benchmarks/results_mempal_hybrid_v4_held_out_session_20260414_1634.jsonl).** For any downstream re-ranker or LLM pass operating on a fixed top-K window, a smaller context window guarantees full coverage.
 

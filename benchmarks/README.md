@@ -134,7 +134,9 @@ ConfidenceAdaptiveTemporalBooster  (CAATB, α = 0.2)
 top-K  (K ∈ {1, 3, 5, 10, 15, 25})
 ```
 
-All three post-processors are registered via `mem.register_postprocessor()`
+All three post-processors are implemented as custom plugins using memweave's
+`mem.register_postprocessor()` API — none are part of the core library. This
+benchmark demonstrates what's achievable with the plugin architecture alone.
 
 ---
 
