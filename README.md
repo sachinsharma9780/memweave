@@ -17,7 +17,7 @@ memweave is a zero-infrastructure, async-first Python library that gives AI agen
 
 ## 📊 Benchmark — LongMemEval-S
 
-Evaluated on [LongMemEval-S](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned) — a 500-question benchmark covering multi-session memory, temporal reasoning, knowledge updates, and user preferences. Primary metric: **Recall@5**.
+Evaluated on [LongMemEval-S](https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned) — a 500-question benchmark covering multi-session memory, temporal reasoning, knowledge updates, and user preferences. Primary metric: retrieval recall i.e. **Recall@k** (correct session in the top-k results).
 
 **Embedding model used:** `all-MiniLM-L6-v2` via Ollama (local), same as mempalace. **No LLM, no API key, no cloud at any stage.**
 
