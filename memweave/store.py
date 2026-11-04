@@ -40,6 +40,7 @@ Lazy initialization:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -208,35 +209,50 @@ class MemWeave:
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._db = await aiosqlite.connect(str(db_path))
-        self._db.row_factory = aiosqlite.Row
+        # Everything after connect() runs inside try: if any step fails (e.g.
+        # "database is locked" from ensure_schema while another process holds the
+        # write lock), close the connection before re-raising. aiosqlite's worker
+        # thread is non-daemon, so a connection left open keeps the interpreter from
+        # exiting — and __aexit__ never runs when __aenter__ raises. (#7)
+        try:
+            self._db.row_factory = aiosqlite.Row
 
-        await ensure_schema(self._db)
+            await ensure_schema(self._db)
 
-        # Try to load sqlite-vec for ANN vector search.
-        # enable_load_extension(True) must be called before load_extension()
-        # — aiosqlite does not do this automatically.
-        if self.config.vector.enabled:
-            try:
-                await self._db.enable_load_extension(True)
-                ext_path = self.config.vector.extension_path
-                if ext_path:
-                    await self._db.load_extension(ext_path)
-                else:
-                    # Try loading by name — works when sqlite-vec is on PATH
-                    try:
-                        import sqlite_vec
+            # Try to load sqlite-vec for ANN vector search.
+            # enable_load_extension(True) must be called before load_extension()
+            # — aiosqlite does not do this automatically.
+            if self.config.vector.enabled:
+                try:
+                    await self._db.enable_load_extension(True)
+                    ext_path = self.config.vector.extension_path
+                    if ext_path:
+                        await self._db.load_extension(ext_path)
+                    else:
+                        # Try loading by name — works when sqlite-vec is on PATH
+                        try:
+                            import sqlite_vec
 
-                        await self._db.load_extension(sqlite_vec.loadable_path())
-                    except Exception:
-                        await self._db.load_extension("vec0")
-                await self._db.enable_load_extension(False)  # re-lock after loading
-                self._vector_available = True
-            except Exception as exc:
-                logger.debug("sqlite-vec not available, falling back to FTS-only: %s", exc)
-                self._vector_available = False
+                            await self._db.load_extension(sqlite_vec.loadable_path())
+                        except Exception:
+                            await self._db.load_extension("vec0")
+                    await self._db.enable_load_extension(False)  # re-lock after loading
+                    self._vector_available = True
+                except Exception as exc:
+                    logger.debug("sqlite-vec not available, falling back to FTS-only: %s", exc)
+                    self._vector_available = False
 
-        self._store = SQLiteStore(self._db)
-        await self._startup_dirty_check()
+            self._store = SQLiteStore(self._db)
+            await self._startup_dirty_check()
+        except BaseException:
+            db, self._db = self._db, None
+            self._store = None
+            self._vector_available = False
+            if db is not None:
+                # Suppress a close() failure so the original error is what propagates.
+                with contextlib.suppress(Exception):
+                    await db.close()
+            raise
 
     async def _startup_dirty_check(self) -> None:
         """Set _dirty=False if the files table matches what's currently on disk.

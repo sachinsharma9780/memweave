@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sqlite3
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -138,6 +140,42 @@ class TestLifecycle:
         async with MemWeave(cfg, embedding_provider=MockEmbeddingProvider()) as mem:
             assert mem._db is not None
         assert mem._db is None  # closed on exit
+
+    async def test_failed_open_closes_connection(self, tmp_path: Path):
+        """A failure after aiosqlite.connect() (e.g. "database is locked" from the
+        schema check) must close the connection: its worker thread is non-daemon,
+        and leaving it running keeps the interpreter from ever exiting (#7)."""
+        cfg = _make_config(tmp_path)
+        mem = MemWeave(cfg, embedding_provider=MockEmbeddingProvider())
+        before = set(threading.enumerate())
+        with patch(
+            "memweave.store.ensure_schema",
+            AsyncMock(side_effect=sqlite3.OperationalError("database is locked")),
+        ):
+            with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+                async with mem:
+                    pass
+        assert mem._db is None
+        for t in set(threading.enumerate()) - before:
+            t.join(timeout=5)
+            assert not t.is_alive(), f"leaked thread after failed open: {t.name}"
+
+    async def test_open_retries_after_failed_open(self, tmp_path: Path):
+        """After a failed open the instance is reusable: the next call opens cleanly."""
+        cfg = _make_config(tmp_path)
+        mem = MemWeave(cfg, embedding_provider=MockEmbeddingProvider())
+        with patch(
+            "memweave.store.ensure_schema",
+            AsyncMock(side_effect=sqlite3.OperationalError("database is locked")),
+        ):
+            with pytest.raises(sqlite3.OperationalError):
+                await mem.open()
+        await mem.open()
+        assert mem._db is not None
+        assert mem._store is not None  # a leaked half-open _db would skip this setup
+        status = await mem.status()
+        assert status.files == 0
+        await mem.close()
 
     async def test_context_manager_close_on_exception(self, tmp_path: Path):
         cfg = _make_config(tmp_path)
